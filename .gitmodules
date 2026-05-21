@@ -1,0 +1,6 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/COFRAP-EPSI-2026/cofrap-backend.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/COFRAP-EPSI-2026/cofrap-frontend.git
