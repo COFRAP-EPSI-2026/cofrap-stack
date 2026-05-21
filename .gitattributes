@@ -1,0 +1,3 @@
+# Les scripts shell gardent des fins de ligne LF, meme sur un checkout Windows
+# (sinon `bash scripts/init.sh` echoue sur les retours chariot \r).
+*.sh text eol=lf

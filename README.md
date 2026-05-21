@@ -14,19 +14,28 @@ pour disposer d'un point d'entrée et d'un accès uniques sur l'ensemble.
 > Chaque composant reste un dépôt **autonome** (sa propre CI, ses releases, son
 > versionnement). Ce méta-dépôt ne fait que les **référencer** à un commit précis.
 
-## Cloner le projet complet
-
-Les sous-modules ne sont pas récupérés par défaut — utiliser `--recurse-submodules` :
+## Démarrage rapide
 
 ```bash
-git clone --recurse-submodules https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+git clone https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+cd cofrap-stack
 ```
 
-Dépôt déjà cloné sans l'option ? Initialiser les sous-modules après coup :
+Puis lancer le **script d'initialisation** — il récupère le code des sous-modules
+(`backend/`, `frontend/`), crée `backend/.env` avec une clé de chiffrement, et
+affiche les commandes de lancement :
 
 ```bash
-git submodule update --init --recursive
+bash scripts/init.sh        # Linux / macOS
 ```
+
+```powershell
+.\scripts\init.ps1          # Windows (PowerShell)
+```
+
+> Le script évite l'oubli classique des sous-modules : un simple `git clone`
+> laisse `backend/` et `frontend/` **vides**. Équivalent manuel si besoin :
+> `git submodule update --init --recursive`.
 
 ## Se mettre à jour sur le dernier code
 
