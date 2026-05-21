@@ -100,8 +100,14 @@ Détails : [`backend/README.md`](backend/README.md) · [`frontend/README.md`](fr
 
 ```
 .
-├── backend/        # sous-module → cofrap-backend
-├── frontend/       # sous-module → cofrap-frontend
+├── backend/        # sous-module → cofrap-backend (code live)
+├── frontend/       # sous-module → cofrap-frontend (code live)
+├── kubernetes/     # manifestes Kubernetes au niveau stack
+├── docs/           # documentation transverse au projet
+├── diagrams/       # diagrammes d'architecture
+├── screenshots/    # captures d'écran (rapport, soutenance)
+├── scripts/        # scripts utilitaires
+├── .github/        # workflows / templates GitHub du méta-dépôt
 ├── .gitmodules     # déclaration des sous-modules
 ├── README.md
 └── LICENSE
