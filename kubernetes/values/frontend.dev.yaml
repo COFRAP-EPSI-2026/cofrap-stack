@@ -15,7 +15,7 @@ backend:
 ingress:
   enabled: true
   className: traefik                             # K3s inclut Traefik nativement
-  host: cofrap.dev.home-maurras.fr
+  host: cofrap-dev.home-maurras.fr
   path: /
   pathType: Prefix
   tls:

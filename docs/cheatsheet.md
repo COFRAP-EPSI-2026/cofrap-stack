@@ -36,7 +36,7 @@ releases, IP) — adapte si tu déploies différemment.
 | Release backend      | `cofrap-dev`                 | `cofrap`                   |
 | Release frontend     | `cofrap-frontend-dev`        | `cofrap-frontend`          |
 | IP MetalLB (VIP)     | `192.168.1.240`              | `192.168.1.241`            |
-| Hostname public      | `cofrap.dev.home-maurras.fr` | `cofrap.home-maurras.fr`   |
+| Hostname public      | `cofrap-dev.home-maurras.fr` | `cofrap.home-maurras.fr`   |
 | Tag image backend    | `dev`                        | `latest` / `v2026.X.Y`     |
 | Tag image frontend   | `dev`                        | `latest` / `v2026.X.Y`     |
 
@@ -495,7 +495,7 @@ kubectl get l2advertisements -n metallb-system
 ```bash
 # Depuis un autre poste du LAN, ping/curl sur l'IP attribuée :
 ping 192.168.1.240
-curl -H 'Host: cofrap.dev.home-maurras.fr' http://192.168.1.240/
+curl -H 'Host: cofrap-dev.home-maurras.fr' http://192.168.1.240/
 ```
 
 ---
@@ -828,7 +828,7 @@ kubectl get ingressclass
 kubectl describe ingress <name> -n cofrap-dev
 
 # Test direct sans DNS (force le Host)
-curl -H 'Host: cofrap.dev.home-maurras.fr' http://192.168.1.240/healthz
+curl -H 'Host: cofrap-dev.home-maurras.fr' http://192.168.1.240/healthz
 ```
 
 ### DNS interne cluster ne résout pas
@@ -905,7 +905,7 @@ bash scripts/init.sh
 # 6. Vérifier
 kubectl get pods -A
 kubectl -n kube-system get svc traefik   # doit avoir 192.168.1.240 en EXTERNAL-IP
-curl -k -H 'Host: cofrap.dev.home-maurras.fr' http://192.168.1.240/healthz
+curl -k -H 'Host: cofrap-dev.home-maurras.fr' http://192.168.1.240/healthz
 ```
 
 ### Recette 2 — Migration Phase 1 → Phase 2 (GitOps avec ArgoCD)

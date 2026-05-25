@@ -105,13 +105,13 @@ kubernetes/
 |------------------|---------------------------------------|--------------------------------------|
 | Namespace        | `cofrap-dev`                          | `cofrap`                             |
 | IP MetalLB (VIP) | `192.168.1.240`                       | `192.168.1.241`                      |
-| Hostname public  | `cofrap.dev.home-maurras.fr`          | `cofrap.home-maurras.fr`             |
+| Hostname public  | `cofrap-dev.home-maurras.fr`          | `cofrap.home-maurras.fr`             |
 | Tag image backend | `dev` (publié par `pre-release.yml`) | `latest` (publié par `release-please.yml`) |
 | Tag image frontend | `dev`                                | `latest`                             |
 | ImagePullPolicy  | `Always` (tag mobile)                 | `IfNotPresent`                       |
 | MariaDB PVC      | `1Gi`                                 | `2Gi`                                |
 | Persistance      | Activée (PVC)                         | Activée (PVC)                        |
-| CORS             | `cofrap.dev.home-maurras.fr` uniquement | `cofrap.home-maurras.fr` uniquement |
+| CORS             | `cofrap-dev.home-maurras.fr` uniquement | `cofrap.home-maurras.fr` uniquement |
 
 Toutes ces valeurs sont éditables dans :
 - `kubernetes/env/{dev,prod}.env` — variables shell (IP, hostname, namespace…)
@@ -207,7 +207,7 @@ The script is **idempotent**: re-running it preserves the secrets (cached in `ku
 |--------------|----------------------------------------|-------------------------------------|
 | Namespace    | `cofrap-dev`                          | `cofrap`                            |
 | MetalLB IP   | `192.168.1.240`                       | `192.168.1.241`                     |
-| Hostname     | `cofrap.dev.home-maurras.fr`          | `cofrap.home-maurras.fr`            |
+| Hostname     | `cofrap-dev.home-maurras.fr`          | `cofrap.home-maurras.fr`            |
 | Image tag    | `dev` (from `pre-release.yml`)        | `latest` (from `release-please.yml`)|
 
 ### Phase 2 — GitOps with ArgoCD

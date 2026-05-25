@@ -12,7 +12,7 @@ functions:
   # En Phase 1 (deploy.sh), surchargé par --set functions.version.
   version: "dev"
   pullPolicy: Always                            # `dev` est mobile, retire le cache
-  corsAllowOrigins: "https://cofrap.dev.home-maurras.fr"
+  corsAllowOrigins: "https://cofrap-dev.home-maurras.fr"
 
   # Slowapi : on garde 120/minute en dev — suffisant pour les tests manuels.
   # Pour stresser l'API : helm upgrade --set functions.env.RATE_LIMIT=10/minute

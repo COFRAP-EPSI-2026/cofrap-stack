@@ -123,12 +123,15 @@ Le script gère MetalLB, OpenFaaS, les secrets, et les 2 charts Helm. Idempotent
 | Frontend  | [`frontend/README.md`](frontend/README.md) | [`frontend/docs/`](frontend/docs/) |
 | Stack K8s | [`kubernetes/README.md`](kubernetes/README.md) | [`kubernetes/argocd/README.md`](kubernetes/argocd/README.md) |
 
-### Cheatsheet stack
+### Documentation opérationnelle (au niveau stack)
 
-[`docs/cheatsheet.md`](docs/cheatsheet.md) — aide-mémoire des commandes courantes
-(kubectl, helm, k3s, minikube, MetalLB, OpenFaaS, ArgoCD, Image Updater) **contextualisées
-au projet COFRAP**, plus 5 recettes complètes (premier déploiement, migration vers
-GitOps, rollback rapide, etc.).
+| Document                                          | À utiliser quand…                                                                            |
+|---------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| [`docs/runbook-dev.md`](docs/runbook-dev.md)      | Tu déploies **la dev A → Z** — focus auto-MAJ sur chaque push branche `dev` (~1h)            |
+| [`docs/runbook-prod.md`](docs/runbook-prod.md)    | Tu déploies **la prod A → Z** — focus releases stables `vX.Y.Z` (~1h-1h30)                  |
+| [`docs/cheatsheet.md`](docs/cheatsheet.md)        | Tu veux **une commande** précise (kubectl, helm, argocd…) — aide-mémoire contextualisé COFRAP |
+| [`kubernetes/README.md`](kubernetes/README.md)    | Tu déploies en Phase 1 avec `deploy.sh` ou tu comprends l'architecture                       |
+| [`kubernetes/argocd/README.md`](kubernetes/argocd/README.md) | Tu prépares ou opères le mode GitOps (ArgoCD + Image Updater)                       |
 
 ## Structure du dépôt
 
