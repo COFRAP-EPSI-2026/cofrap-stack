@@ -48,6 +48,12 @@ function Ok($msg)   { Write-Host "   ✓ $msg" -ForegroundColor Green }
 function Warn($msg) { Write-Host "   ! $msg" -ForegroundColor Yellow }
 function Die($msg)  { Write-Host "`n✗ $msg" -ForegroundColor Red; exit 1 }
 
+# $ErrorActionPreference='Stop' ne lève PAS d'erreur sur les binaires natifs
+# (kubectl, helm, etc.) — il faut vérifier $LASTEXITCODE après chaque appel.
+function Check-NativeExit($action) {
+  if ($LASTEXITCODE -ne 0) { Die "$action a échoué (exit code $LASTEXITCODE)" }
+}
+
 $Root    = (Get-Item $PSScriptRoot).Parent.FullName
 $KubeDir = $PSScriptRoot
 
@@ -55,9 +61,12 @@ $KubeDir = $PSScriptRoot
 $EnvFile = Join-Path $KubeDir "env\$Env.env"
 if (-not (Test-Path $EnvFile)) { Die "Fichier d'env introuvable : $EnvFile" }
 
-# Parse le fichier KEY=VALUE et exporte dans $env:
+# Parse le fichier KEY=VALUE et exporte dans $env:.
+# La regex ignore les commentaires inline (` # ...` après la valeur) — sans ça,
+# `NAMESPACE=cofrap-dev   # commentaire` capturerait tout le commentaire dans la
+# valeur et K8s rejette le namespace (RFC 1123).
 Get-Content $EnvFile | ForEach-Object {
-  if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$' -and -not $_.StartsWith('#')) {
+  if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*([^#]*?)\s*(?:#.*)?$' -and -not $_.TrimStart().StartsWith('#')) {
     Set-Item -Path "env:$($Matches[1])" -Value $Matches[2]
   }
 }
@@ -75,7 +84,8 @@ Write-Host "   Tag frontend    : $env:IMAGE_TAG_FRONTEND"
 Info "Vérification des pré-requis"
 if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) { Die "kubectl introuvable" }
 if (-not (Get-Command helm    -ErrorAction SilentlyContinue)) { Die "helm introuvable" }
-try { kubectl cluster-info 2>$null | Out-Null } catch { Die "kubectl ne peut pas joindre le cluster" }
+kubectl cluster-info 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) { Die "kubectl ne peut pas joindre le cluster" }
 Ok "kubectl + helm + cluster OK"
 
 # --- 2. MetalLB (optionnel) ----------------------------------------------
@@ -152,6 +162,7 @@ helm upgrade --install $env:RELEASE_BACKEND (Join-Path $Root "backend\deploy\hel
   --set secrets.mariadbRootPassword="$script:MARIADB_ROOT_PASSWORD" `
   --set functions.version="$env:IMAGE_TAG_BACKEND" `
   --wait --timeout 10m
+Check-NativeExit "helm upgrade backend"
 Ok "Backend déployé"
 
 # --- 6. Frontend (chart cofrap-frontend) ---------------------------------
@@ -162,6 +173,7 @@ helm upgrade --install $env:RELEASE_FRONTEND (Join-Path $Root "frontend\deploy\h
   --set image.tag="$env:IMAGE_TAG_FRONTEND" `
   --set ingress.host="$env:INGRESS_HOST" `
   --wait --timeout 5m
+Check-NativeExit "helm upgrade frontend"
 Ok "Frontend déployé"
 
 # --- 7. Récap -------------------------------------------------------------

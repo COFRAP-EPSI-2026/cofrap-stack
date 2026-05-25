@@ -47,7 +47,7 @@ $EnvFile = Join-Path $KubeDir "env\$Env.env"
 if (-not (Test-Path $EnvFile)) { Die "Fichier d'env introuvable : $EnvFile" }
 
 Get-Content $EnvFile | ForEach-Object {
-  if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$' -and -not $_.StartsWith('#')) {
+  if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*([^#]*?)\s*(?:#.*)?$' -and -not $_.TrimStart().StartsWith('#')) {
     Set-Item -Path "env:$($Matches[1])" -Value $Matches[2]
   }
 }
