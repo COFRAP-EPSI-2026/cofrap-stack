@@ -126,15 +126,21 @@ Le script gère MetalLB, OpenFaaS, les secrets, et les 2 charts Helm. Idempotent
 
 ```
 .
-├── backend/        # sous-module → cofrap-backend (code live)
-├── frontend/       # sous-module → cofrap-frontend (code live)
-├── kubernetes/     # manifestes Kubernetes au niveau stack
-├── docs/           # documentation transverse au projet
-├── diagrams/       # diagrammes d'architecture
-├── screenshots/    # captures d'écran (rapport, soutenance)
-├── scripts/        # scripts utilitaires
-├── .github/        # workflows / templates GitHub du méta-dépôt
-├── .gitmodules     # déclaration des sous-modules
+├── backend/                       # sous-module → cofrap-backend (code live)
+├── frontend/                      # sous-module → cofrap-frontend (code live)
+├── kubernetes/                    # déploiement stack K8s (dev / prod)
+│   ├── deploy.{sh,ps1}            # orchestrateur unique → backend + frontend
+│   ├── uninstall.{sh,ps1}
+│   ├── env/{dev,prod}.env         # variables (IP, hostname, tag, namespace)
+│   ├── loadbalancing/             # MetalLB + IPAddressPool dev / prod
+│   ├── values/                    # overrides Helm — consommés par bash ET ArgoCD
+│   └── argocd/                    # Phase 2 — App-of-Apps GitOps
+├── docs/                          # documentation transverse au projet
+├── diagrams/                      # diagrammes d'architecture
+├── screenshots/                   # captures d'écran (rapport, soutenance)
+├── scripts/                       # scripts utilitaires (init des submodules)
+├── .github/                       # workflows / templates GitHub du méta-dépôt
+├── .gitmodules                    # déclaration des sous-modules
 ├── README.md
 └── LICENSE
 ```
