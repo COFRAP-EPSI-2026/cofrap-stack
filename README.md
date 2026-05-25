@@ -113,7 +113,7 @@ Pour déployer la stack **entière** (MariaDB + 3 fonctions backend + frontend n
 
 Le script gère MetalLB, OpenFaaS, les secrets, et les 2 charts Helm. Idempotent — peut être rejoué sans casser. Voir [`kubernetes/README.md`](kubernetes/README.md) pour la doc complète (variantes, override, troubleshooting).
 
-> **GitOps avec ArgoCD** — la prochaine évolution naturelle : ArgoCD watche ce repo et reconcilie automatiquement à chaque push. Manifestes prêts à l'emploi dans [`kubernetes/argocd/`](kubernetes/argocd/README.md).
+> **GitOps avec ArgoCD + Image Updater** — la prochaine évolution naturelle : ArgoCD watche ce repo et reconcilie automatiquement à chaque push. Avec **ArgoCD Image Updater** câblé dans les manifestes fournis, **chaque release Release Please (backend ou frontend) déclenche automatiquement le redéploiement** de la stack concernée — sans intervention manuelle, sans toucher aux workflows CI/CD existants. Manifestes prêts à l'emploi dans [`kubernetes/argocd/`](kubernetes/argocd/README.md).
 
 ## Documentation
 
@@ -121,6 +121,14 @@ Le script gère MetalLB, OpenFaaS, les secrets, et les 2 charts Helm. Idempotent
 |-----------|--------|------------------------------------------|
 | Backend   | [`backend/README.md`](backend/README.md)   | [`backend/docs/`](backend/docs/)   |
 | Frontend  | [`frontend/README.md`](frontend/README.md) | [`frontend/docs/`](frontend/docs/) |
+| Stack K8s | [`kubernetes/README.md`](kubernetes/README.md) | [`kubernetes/argocd/README.md`](kubernetes/argocd/README.md) |
+
+### Cheatsheet stack
+
+[`docs/cheatsheet.md`](docs/cheatsheet.md) — aide-mémoire des commandes courantes
+(kubectl, helm, k3s, minikube, MetalLB, OpenFaaS, ArgoCD, Image Updater) **contextualisées
+au projet COFRAP**, plus 5 recettes complètes (premier déploiement, migration vers
+GitOps, rollback rapide, etc.).
 
 ## Structure du dépôt
 

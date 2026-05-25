@@ -7,7 +7,10 @@ openfaas:
 
 functions:
   registry: ghcr.io/cofrap-epsi-2026
-  version: "dev"                                # tag publié par pre-release.yml
+  # AUTO-MANAGED par ArgoCD Image Updater (stratégie digest sur `:dev`).
+  # En Phase 2 GitOps, devient `dev@sha256:<digest>` à chaque push sur dev.
+  # En Phase 1 (deploy.sh), surchargé par --set functions.version.
+  version: "dev"
   pullPolicy: Always                            # `dev` est mobile, retire le cache
   corsAllowOrigins: "https://cofrap.dev.home-maurras.fr"
 

@@ -7,8 +7,13 @@ openfaas:
 
 functions:
   registry: ghcr.io/cofrap-epsi-2026
-  version: "latest"                             # bumpé par release-please.yml
-  pullPolicy: IfNotPresent                      # `latest` peut bouger mais on évite la latence
+  # AUTO-MANAGED par ArgoCD Image Updater quand le GitOps est actif (Phase 2).
+  # Image Updater watche ghcr.io/cofrap-epsi-2026/generate-password et bump
+  # cette ligne à chaque nouveau tag stable vX.Y.Z publié par release-please.yml.
+  # Cf. kubernetes/argocd/app-cofrap-backend.prod.yaml + argocd/README.md.
+  # En Phase 1 (deploy.sh), ce champ est surchargé par --set functions.version.
+  version: "latest"
+  pullPolicy: IfNotPresent
   corsAllowOrigins: "https://cofrap.home-maurras.fr"
 
 mariadb:

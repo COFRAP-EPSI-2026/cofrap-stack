@@ -8,6 +8,21 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  # --- ArgoCD Image Updater (auto-MAJ sur nouveau tag stable vX.Y.Z) -----
+  # On watche UNE image (generate-password) car Release Please publie les 3
+  # fonctions au même tag à chaque release — option B validée. Bump du
+  # helmvalues:functions.version → ArgoCD redéploie les 3 Deployments.
+  # Le write-back-method=git fait commit Image Updater dans cofrap-stack via
+  # le PAT GHCR_PAT_TOKEN du secret argocd-image-updater-secret (cf. README).
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: >-
+      backend=ghcr.io/cofrap-epsi-2026/generate-password
+    argocd-image-updater.argoproj.io/backend.update-strategy: semver
+    argocd-image-updater.argoproj.io/backend.allow-tags: "regexp:^v\\d+\\.\\d+\\.\\d+$"
+    argocd-image-updater.argoproj.io/backend.helm.image-tag: functions.version
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-target: "helmvalues:./kubernetes/values/backend.prod.yaml"
+    argocd-image-updater.argoproj.io/git-branch: main
 spec:
   project: default
 

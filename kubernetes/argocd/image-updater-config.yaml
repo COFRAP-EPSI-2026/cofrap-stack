@@ -1,0 +1,52 @@
+# Configuration ArgoCD Image Updater pour COFRAP.
+#
+# À appliquer APRÈS :
+#   1. Installation d'ArgoCD Image Updater dans le namespace argocd
+#      (cf. argocd/README.md — section « Bootstrap ArgoCD Image Updater »).
+#   2. Création du secret `git-creds` contenant un PAT GitHub avec scope `repo`
+#      sur cofrap-stack (write-back des bumps de tag).
+#
+# Ce ConfigMap dit à Image Updater :
+#   - où trouver le registre GHCR
+#   - comment s'identifier au repo Git cofrap-stack pour pusher les bumps
+#   - de quel user/email signer les commits automatiques
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-image-updater-config
+  namespace: argocd
+data:
+  # Polling interval — défaut 2 min. Abaisser à 30s pour de la réactivité dev.
+  interval: "2m"
+  log.level: "info"
+
+  # Registres OCI watchés.
+  # GHCR : pas d'auth nécessaire pour les packages publics ; pour des packages
+  # privés, ajouter `credentials: secret:argocd/ghcr-creds#token` (mot-clé GHCR).
+  registries.conf: |
+    registries:
+    - name: GitHub Container Registry
+      api_url: https://ghcr.io
+      prefix: ghcr.io
+      ping: yes
+      default: true
+
+  # Identité du committer + repos Git autorisés.
+  git.commit-message-template: |
+    chore(image-updater): bump {{ range .AppChanges }}{{ .Image }} → {{ .NewTag }}{{ end }}
+
+    Automatique via ArgoCD Image Updater.
+  git.user: "argocd-image-updater[bot]"
+  git.email: "argocd-image-updater@noreply.cofrap.local"
+---
+# Optionnel : ssh-known-hosts pour le clone Git en SSH.
+# Si tu utilises HTTPS + PAT (cas recommandé ici), ce ConfigMap reste vide.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-image-updater-ssh-config
+  namespace: argocd
+data:
+  config: |
+    # Pas de config SSH — on utilise HTTPS + PAT.

@@ -9,11 +9,16 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
   # Annotations pour ArgoCD Image Updater (suit le tag `:dev` et reconcilie
   # automatiquement quand pre-release.yml pousse une nouvelle image).
+  # Write-back dans le file Helm values via `helmvalues:` — Git source de vérité.
   annotations:
-    argocd-image-updater.argoproj.io/image-list: app=ghcr.io/cofrap-epsi-2026/cofrap-frontend
-    argocd-image-updater.argoproj.io/app.update-strategy: digest
-    argocd-image-updater.argoproj.io/app.allow-tags: "regexp:^dev$"
+    argocd-image-updater.argoproj.io/image-list: >-
+      frontend=ghcr.io/cofrap-epsi-2026/cofrap-frontend
+    argocd-image-updater.argoproj.io/frontend.update-strategy: digest
+    argocd-image-updater.argoproj.io/frontend.allow-tags: "regexp:^dev$"
+    argocd-image-updater.argoproj.io/frontend.helm.image-tag: image.tag
     argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-target: "helmvalues:./kubernetes/values/frontend.dev.yaml"
+    argocd-image-updater.argoproj.io/git-branch: main
 spec:
   project: default
 

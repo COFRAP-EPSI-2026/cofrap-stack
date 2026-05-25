@@ -15,6 +15,20 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  # --- ArgoCD Image Updater (auto-MAJ à chaque push dev) -------------------
+  # En dev le tag est `:dev` (mobile) — stratégie digest : Image Updater suit
+  # le SHA256 du tag et déclenche un redéploiement quand pre-release.yml
+  # republie. On garde l'option B : 1 image watchée pour bump
+  # `functions.version` partagé par les 3 fonctions.
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: >-
+      backend=ghcr.io/cofrap-epsi-2026/generate-password
+    argocd-image-updater.argoproj.io/backend.update-strategy: digest
+    argocd-image-updater.argoproj.io/backend.allow-tags: "regexp:^dev$"
+    argocd-image-updater.argoproj.io/backend.helm.image-tag: functions.version
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-target: "helmvalues:./kubernetes/values/backend.dev.yaml"
+    argocd-image-updater.argoproj.io/git-branch: main
 spec:
   project: default
 

@@ -8,12 +8,17 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   # En PROD, Image Updater suit uniquement les tags semver `vX.Y.Z`
-  # (pas `latest`, qui est mobile).
+  # (pas `latest`, qui est mobile). Write-back dans le file Helm values via
+  # `helmvalues:` — Git reste l'unique source de vérité.
   annotations:
-    argocd-image-updater.argoproj.io/image-list: app=ghcr.io/cofrap-epsi-2026/cofrap-frontend
-    argocd-image-updater.argoproj.io/app.update-strategy: semver
-    argocd-image-updater.argoproj.io/app.allow-tags: "regexp:^v\\d+\\.\\d+\\.\\d+$"
+    argocd-image-updater.argoproj.io/image-list: >-
+      frontend=ghcr.io/cofrap-epsi-2026/cofrap-frontend
+    argocd-image-updater.argoproj.io/frontend.update-strategy: semver
+    argocd-image-updater.argoproj.io/frontend.allow-tags: "regexp:^v\\d+\\.\\d+\\.\\d+$"
+    argocd-image-updater.argoproj.io/frontend.helm.image-tag: image.tag
     argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-target: "helmvalues:./kubernetes/values/frontend.prod.yaml"
+    argocd-image-updater.argoproj.io/git-branch: main
 spec:
   project: default
 

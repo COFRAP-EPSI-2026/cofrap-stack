@@ -3,7 +3,9 @@
 
 image:
   repository: ghcr.io/cofrap-epsi-2026/cofrap-frontend
-  tag: "dev"                                     # tag publié par pre-release.yml
+  # AUTO-MANAGED par ArgoCD Image Updater (stratégie digest sur `:dev`).
+  # En Phase 1 (deploy.sh), surchargé par --set image.tag.
+  tag: "dev"
   pullPolicy: Always                             # `dev` est mobile
 
 # nginx du pod proxifie /api → gateway OpenFaaS (même origine, pas de CORS).

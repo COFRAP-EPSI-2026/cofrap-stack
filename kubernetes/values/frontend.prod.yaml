@@ -3,7 +3,11 @@
 
 image:
   repository: ghcr.io/cofrap-epsi-2026/cofrap-frontend
-  tag: "latest"                                  # bumpé par release-please.yml
+  # AUTO-MANAGED par ArgoCD Image Updater quand le GitOps est actif (Phase 2).
+  # Bumpé automatiquement vers le dernier vX.Y.Z publié par release-please.yml.
+  # Cf. kubernetes/argocd/app-cofrap-frontend.prod.yaml + argocd/README.md.
+  # En Phase 1 (deploy.sh), ce champ est surchargé par --set image.tag.
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 backend:

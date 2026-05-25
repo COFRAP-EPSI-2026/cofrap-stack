@@ -101,24 +101,121 @@ Vérifier dans l'UI ArgoCD que les 3 Applications apparaissent et passent `Healt
 - `cofrap-backend-dev`
 - `cofrap-frontend-dev`
 
-## Auto-MAJ sur nouveau tag d'image (Image Updater)
+## Auto-MAJ sur nouveau tag d'image (ArgoCD Image Updater)
 
-Les Applications frontend ont des annotations [`argocd-image-updater`](https://argocd-image-updater.readthedocs.io/). Pour activer :
+**Objectif** : quand Release Please publie un tag `v2026.X.Y` (backend OU frontend), le cluster est mis à jour **automatiquement** sans toucher à un terminal. Les `pre-release.yml` (branche `dev`) pareil.
 
-```bash
-# Installer ArgoCD Image Updater dans le namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+### Comment ça marche
 
-# Lui donner accès en écriture au repo Git (pour committer les bumps de tag)
-# → créer un PAT GitHub avec scope `repo`, puis un secret argocd-image-updater-secret
-#   contenant les credentials git. Cf. docs Image Updater.
+```
+Push main (feat:) ──► Release Please tag v2026.X.Y ──► CI build & push GHCR
+                                                              │
+                       ┌──────────────────────────────────────┘
+                       ▼ (toutes les 2 min, polling)
+              ArgoCD Image Updater
+                       │
+                       ├─► Détecte nouveau tag matchant le regexp
+                       │
+                       ▼ (write-back: git)
+              git commit + push dans cofrap-stack :
+                kubernetes/values/<comp>.prod.yaml
+                  image.tag (ou functions.version) ← v2026.X.Y
+                       │
+                       ▼ (ArgoCD voit le commit en ~30s)
+              Reconciliation Helm → kubectl rollout
+                       │
+                       ▼
+              Nouvelle image pullée et déployée
 ```
 
-Comportement :
-- **dev** : suit le tag `dev` (mobile). À chaque push sur `dev` qui re-build l'image, Image Updater détecte le nouveau digest et commit dans Git → ArgoCD redéploie.
-- **prod** : suit uniquement les tags semver `vX.Y.Z`. Quand Release Please pousse `v2026.5.0`, Image Updater commit le nouveau tag → ArgoCD redéploie en prod.
+### Stratégie par environnement
 
-C'est ce qu'on appelle la boucle **GitOps complète** : tout changement (code OU image) passe par Git.
+| Env  | Image watchée                                  | Stratégie    | Filtre tag                   |
+|------|-------------------------------------------------|--------------|------------------------------|
+| dev  | `ghcr.io/cofrap-epsi-2026/generate-password`    | **digest**   | `^dev$` (tag mobile)          |
+| dev  | `ghcr.io/cofrap-epsi-2026/cofrap-frontend`      | **digest**   | `^dev$`                       |
+| prod | `ghcr.io/cofrap-epsi-2026/generate-password`    | **semver**   | `^v\d+\.\d+\.\d+$`           |
+| prod | `ghcr.io/cofrap-epsi-2026/cofrap-frontend`      | **semver**   | `^v\d+\.\d+\.\d+$`           |
+
+> **Backend = option B** : on ne watche qu'**une** des 3 images backend (`generate-password`). Comme Release Please publie les 3 images au même tag à chaque release, bump du seul champ `functions.version` suffit à redéployer les 3 fonctions de manière cohérente. Zéro modification du chart backend.
+
+### Indépendance backend / frontend
+
+Chaque Application a ses propres annotations et son propre `write-back-target` :
+- Release backend → bump uniquement `values/backend.<env>.yaml` → ArgoCD redéploie uniquement les 3 fonctions
+- Release frontend → bump uniquement `values/frontend.<env>.yaml` → ArgoCD redéploie uniquement le pod nginx
+
+Pas de couplage. Les 2 repos ont leur propre cycle Release Please.
+
+### Bootstrap ArgoCD Image Updater (1× par cluster)
+
+#### Étape 1 — Créer le PAT GitHub
+
+Sur GitHub, créer un **PAT classique** ([Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)) ou **fine-grained** :
+- **Repo** : `COFRAP-EPSI-2026/cofrap-stack`
+- **Permissions** : `contents: write` (fine-grained) ou scope `repo` (classic)
+- Optionnel — accès aux packages GHCR si le repo OCI est privé : `read:packages`
+
+**Garder le PAT à portée de main pour l'étape 3.**
+
+#### Étape 2 — Installer Image Updater
+
+```bash
+kubectl apply -n argocd \
+  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+```
+
+#### Étape 3 — Créer le secret git-creds + appliquer la config
+
+```bash
+# Replace <PAT> par ton token
+kubectl -n argocd create secret generic git-creds \
+  --from-literal=username=argocd-image-updater \
+  --from-literal=password=<PAT>
+
+# Applique la config Image Updater (registre + identité commit)
+kubectl apply -f kubernetes/argocd/image-updater-config.yaml
+
+# Redémarre le pod pour qu'il relise la config
+kubectl -n argocd rollout restart deployment argocd-image-updater
+```
+
+#### Étape 4 — Déclarer le repo Git dans ArgoCD avec les credentials
+
+ArgoCD lui-même doit pouvoir **pusher** dans cofrap-stack (pas juste pull). Côté UI ArgoCD : **Settings → Repositories → Connect Repo using HTTPS** :
+- Repository URL : `https://github.com/COFRAP-EPSI-2026/cofrap-stack.git`
+- Username : `argocd-image-updater`
+- Password : `<le même PAT que ci-dessus>`
+- ✅ **Enable submodules** (sinon le clone ne télécharge pas `backend/` et `frontend/`)
+
+Ou en CLI :
+```bash
+argocd repo add https://github.com/COFRAP-EPSI-2026/cofrap-stack.git \
+  --username argocd-image-updater \
+  --password <PAT> \
+  --enable-submodule
+```
+
+#### Étape 5 — Tester
+
+Vérifier les logs Image Updater :
+```bash
+kubectl -n argocd logs deploy/argocd-image-updater -f
+# Tu dois voir, toutes les 2 min : "Processing image list for application <name>"
+```
+
+Quand un nouveau tag est publié :
+```
+INFO[...] Setting new image to ghcr.io/.../generate-password:v2026.X.Y
+INFO[...] Successfully updated image cofrap-backend-prod with new tag
+INFO[...] Committing change to git repo
+```
+
+Vérifier dans le repo cofrap-stack : un nouveau commit `chore(image-updater): bump ghcr.io/...` doit apparaître ~2 min après la fin de `release-please.yml`. Et dans ArgoCD UI, la Application doit passer en `OutOfSync` puis `Synced/Healthy` 30s plus tard.
+
+### Désactiver le bot pour un env (sans tout supprimer)
+
+Supprime les 7 annotations `argocd-image-updater.argoproj.io/*` de l'Application concernée et `git commit`. Image Updater ignorera cette Application au prochain polling. Pour la réactiver : rétablir les annotations.
 
 ## Secrets
 
