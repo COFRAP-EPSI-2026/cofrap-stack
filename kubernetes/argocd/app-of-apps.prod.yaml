@@ -1,0 +1,35 @@
+# ArgoCD App-of-Apps — racine pour l'environnement PROD.
+# Cf. app-of-apps.dev.yaml pour les commentaires.
+#
+# Bootstrap :
+#   kubectl apply -f kubernetes/argocd/app-of-apps.prod.yaml
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cofrap-stack-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+    targetRevision: main
+    path: kubernetes/argocd
+    directory:
+      recurse: false
+      include: '{app-cofrap-backend.prod.yaml,app-cofrap-frontend.prod.yaml}'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    # En PROD : pas de selfHeal automatique (humain dans la boucle).
+    automated:
+      prune: true
+      selfHeal: false
+    syncOptions:
+      - ServerSideApply=true

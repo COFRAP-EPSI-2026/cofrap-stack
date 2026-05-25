@@ -1,0 +1,20 @@
+# Override du chart `cofrap-frontend` pour l'environnement PROD.
+# Référence des clés : frontend/deploy/helm/cofrap-frontend/values.yaml
+
+image:
+  repository: ghcr.io/cofrap-epsi-2026/cofrap-frontend
+  tag: "latest"                                  # bumpé par release-please.yml
+  pullPolicy: IfNotPresent
+
+backend:
+  gateway: gateway.openfaas.svc.cluster.local:8080
+
+ingress:
+  enabled: true
+  className: traefik
+  host: cofrap.home-maurras.fr
+  path: /
+  pathType: Prefix
+  tls:
+    enabled: false                               # TLS terminé par Cloudflare Tunnel
+    secretName: ""

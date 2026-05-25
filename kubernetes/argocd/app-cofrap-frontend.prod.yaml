@@ -1,0 +1,45 @@
+# ArgoCD Application — frontend cofrap-frontend, env PROD.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cofrap-frontend-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  # En PROD, Image Updater suit uniquement les tags semver `vX.Y.Z`
+  # (pas `latest`, qui est mobile).
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: app=ghcr.io/cofrap-epsi-2026/cofrap-frontend
+    argocd-image-updater.argoproj.io/app.update-strategy: semver
+    argocd-image-updater.argoproj.io/app.allow-tags: "regexp:^v\\d+\\.\\d+\\.\\d+$"
+    argocd-image-updater.argoproj.io/write-back-method: git
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+    targetRevision: main
+    path: frontend/deploy/helm/cofrap-frontend
+    helm:
+      releaseName: cofrap-frontend
+      valueFiles:
+        - ../../../../kubernetes/values/frontend.prod.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cofrap
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 10m

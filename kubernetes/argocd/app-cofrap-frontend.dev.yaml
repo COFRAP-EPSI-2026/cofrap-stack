@@ -1,0 +1,45 @@
+# ArgoCD Application — frontend cofrap-frontend, env DEV.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cofrap-frontend-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  # Annotations pour ArgoCD Image Updater (suit le tag `:dev` et reconcilie
+  # automatiquement quand pre-release.yml pousse une nouvelle image).
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: app=ghcr.io/cofrap-epsi-2026/cofrap-frontend
+    argocd-image-updater.argoproj.io/app.update-strategy: digest
+    argocd-image-updater.argoproj.io/app.allow-tags: "regexp:^dev$"
+    argocd-image-updater.argoproj.io/write-back-method: git
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+    targetRevision: main
+    path: frontend/deploy/helm/cofrap-frontend
+    helm:
+      releaseName: cofrap-frontend-dev
+      valueFiles:
+        - ../../../../kubernetes/values/frontend.dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cofrap-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

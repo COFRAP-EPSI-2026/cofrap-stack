@@ -1,0 +1,62 @@
+# ArgoCD Application — backend cofrap, env DEV.
+#
+# Source : le chart Helm vit dans le repo cofrap-backend (référencé en
+# submodule par cofrap-stack). ArgoCD lit le repo cofrap-stack ; pour
+# accéder au chart sous backend/, l'option `submoduleEnabled: true` doit
+# être activée dans la config ArgoCD du repo (cf. argocd/README.md).
+#
+# Les overrides per-env vivent dans kubernetes/values/backend.dev.yaml — même
+# fichier consommé par deploy.sh. Une seule source de vérité.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cofrap-backend-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+    targetRevision: main
+    path: backend/deploy/helm/cofrap
+    helm:
+      releaseName: cofrap-dev
+      valueFiles:
+        # Chemin relatif depuis `path` ci-dessus.
+        - ../../../../kubernetes/values/backend.dev.yaml
+      # Les secrets ne vivent PAS ici. Voir argocd/README.md pour Sealed Secrets,
+      # External Secrets Operator ou la méthode "secrets pré-créés à la main".
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cofrap-dev
+
+  syncPolicy:
+    automated:
+      prune: true        # supprime les ressources retirées du Git
+      selfHeal: true     # rollback auto si quelqu'un édite le cluster à la main
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+
+  # Ignore les diffs sur les secrets (gérés hors ArgoCD).
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: mariadb-password
+      namespace: openfaas-fn
+      jsonPointers: [/data]
+    - group: ""
+      kind: Secret
+      name: encryption-key
+      namespace: openfaas-fn
+      jsonPointers: [/data]

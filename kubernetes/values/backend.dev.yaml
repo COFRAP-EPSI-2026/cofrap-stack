@@ -1,0 +1,28 @@
+# Override du chart `cofrap` (backend) pour l'environnement DEV.
+# Référence des clés : backend/deploy/helm/cofrap/values.yaml
+
+openfaas:
+  functionNamespace: openfaas-fn
+  gatewayURL: "http://gateway.openfaas.svc.cluster.local:8080"
+
+functions:
+  registry: ghcr.io/cofrap-epsi-2026
+  version: "dev"                                # tag publié par pre-release.yml
+  pullPolicy: Always                            # `dev` est mobile, retire le cache
+  corsAllowOrigins: "https://cofrap.dev.home-maurras.fr"
+
+  # Slowapi : on garde 120/minute en dev — suffisant pour les tests manuels.
+  # Pour stresser l'API : helm upgrade --set functions.env.RATE_LIMIT=10/minute
+
+mariadb:
+  # En dev on garde des ressources modestes pour partager avec d'autres workloads
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: "500m"
+      memory: 512Mi
+  persistence:
+    enabled: true
+    size: 1Gi                                   # plus petit qu'en prod (2Gi)

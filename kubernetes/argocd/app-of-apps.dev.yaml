@@ -1,0 +1,40 @@
+# ArgoCD App-of-Apps — racine pour l'environnement DEV.
+#
+# Cette Application unique pointe sur le dossier kubernetes/argocd/ et y
+# applique tous les manifestes Application enfants matchant *.dev.yaml.
+# C'est le SEUL manifeste à `kubectl apply` à la main pour démarrer le
+# GitOps. Une fois en place, tout passe par Git.
+#
+# Bootstrap :
+#   kubectl apply -f kubernetes/argocd/app-of-apps.dev.yaml
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cofrap-stack-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+    targetRevision: main
+    path: kubernetes/argocd
+    directory:
+      recurse: false
+      # On limite aux apps `.dev.yaml` — l'app-of-apps elle-même est exclue
+      # par le filtre pour éviter un cycle de réconciliation.
+      include: '{app-cofrap-backend.dev.yaml,app-cofrap-frontend.dev.yaml}'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

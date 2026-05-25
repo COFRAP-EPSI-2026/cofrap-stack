@@ -1,0 +1,53 @@
+# ArgoCD Application — backend cofrap, env PROD.
+# Cf. app-cofrap-backend.dev.yaml pour les commentaires détaillés.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cofrap-backend-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/COFRAP-EPSI-2026/cofrap-stack.git
+    targetRevision: main
+    path: backend/deploy/helm/cofrap
+    helm:
+      releaseName: cofrap
+      valueFiles:
+        - ../../../../kubernetes/values/backend.prod.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cofrap
+
+  syncPolicy:
+    # En PROD on garde syncPolicy.automated mais avec selfHeal:false :
+    # on veut une revue manuelle avant que la prod bouge.
+    automated:
+      prune: true
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 10m
+
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: mariadb-password
+      namespace: openfaas-fn
+      jsonPointers: [/data]
+    - group: ""
+      kind: Secret
+      name: encryption-key
+      namespace: openfaas-fn
+      jsonPointers: [/data]

@@ -70,7 +70,7 @@ commit exact de chaque composant il est aligné.
 - **Backend** : génération de mot de passe (24 caractères), 2FA TOTP, chiffrement
   Fernet, rotation à 6 mois.
 
-## Lancer la stack complète en local
+## Lancer la stack complète en local (sans cluster)
 
 Pré-requis : Docker + Docker Compose, Node.js `>=22.12`, Yarn classic.
 
@@ -97,6 +97,23 @@ yarn dev
 → `http://localhost:5173` — les appels `/api/*` sont proxifiés vers le backend.
 
 Détails : [`backend/README.md`](backend/README.md) · [`frontend/README.md`](frontend/README.md).
+
+## Déployer la stack sur Kubernetes (dev ou prod)
+
+Pour déployer la stack **entière** (MariaDB + 3 fonctions backend + frontend nginx) sur un cluster K8s en une commande :
+
+```bash
+# Linux / macOS / WSL
+./kubernetes/deploy.sh --env dev          # environnement dev
+./kubernetes/deploy.sh --env prod         # environnement prod
+
+# Windows
+.\kubernetes\deploy.ps1 -Env dev
+```
+
+Le script gère MetalLB, OpenFaaS, les secrets, et les 2 charts Helm. Idempotent — peut être rejoué sans casser. Voir [`kubernetes/README.md`](kubernetes/README.md) pour la doc complète (variantes, override, troubleshooting).
+
+> **GitOps avec ArgoCD** — la prochaine évolution naturelle : ArgoCD watche ce repo et reconcilie automatiquement à chaque push. Manifestes prêts à l'emploi dans [`kubernetes/argocd/`](kubernetes/argocd/README.md).
 
 ## Documentation
 

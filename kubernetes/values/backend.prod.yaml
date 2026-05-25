@@ -1,0 +1,25 @@
+# Override du chart `cofrap` (backend) pour l'environnement PROD.
+# Référence des clés : backend/deploy/helm/cofrap/values.yaml
+
+openfaas:
+  functionNamespace: openfaas-fn
+  gatewayURL: "http://gateway.openfaas.svc.cluster.local:8080"
+
+functions:
+  registry: ghcr.io/cofrap-epsi-2026
+  version: "latest"                             # bumpé par release-please.yml
+  pullPolicy: IfNotPresent                      # `latest` peut bouger mais on évite la latence
+  corsAllowOrigins: "https://cofrap.home-maurras.fr"
+
+mariadb:
+  # Ressources plus généreuses en prod
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  persistence:
+    enabled: true
+    size: 2Gi

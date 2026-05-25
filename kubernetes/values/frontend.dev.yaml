@@ -1,0 +1,21 @@
+# Override du chart `cofrap-frontend` pour l'environnement DEV.
+# Référence des clés : frontend/deploy/helm/cofrap-frontend/values.yaml
+
+image:
+  repository: ghcr.io/cofrap-epsi-2026/cofrap-frontend
+  tag: "dev"                                     # tag publié par pre-release.yml
+  pullPolicy: Always                             # `dev` est mobile
+
+# nginx du pod proxifie /api → gateway OpenFaaS (même origine, pas de CORS).
+backend:
+  gateway: gateway.openfaas.svc.cluster.local:8080
+
+ingress:
+  enabled: true
+  className: traefik                             # K3s inclut Traefik nativement
+  host: cofrap.dev.home-maurras.fr
+  path: /
+  pathType: Prefix
+  tls:
+    enabled: false                               # TLS terminé par Cloudflare Tunnel à l'edge
+    secretName: ""

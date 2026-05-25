@@ -1,0 +1,4 @@
+# Secrets générés par deploy.{sh,ps1} — NE JAMAIS COMMITER.
+.secrets.dev
+.secrets.prod
+.secrets.*
