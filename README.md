@@ -98,22 +98,41 @@ yarn dev
 
 Détails : [`backend/README.md`](backend/README.md) · [`frontend/README.md`](frontend/README.md).
 
-## Déployer la stack sur Kubernetes (dev ou prod)
+## Déployer la stack sur Kubernetes
 
-Pour déployer la stack **entière** (MariaDB + 3 fonctions backend + frontend nginx) sur un cluster K8s en une commande :
+La stack **entière** (MariaDB + 3 fonctions backend + frontend nginx) se déploie sur
+K8s. **Deux modes selon l'environnement** :
+
+### 🟦 DEV — GitOps automatique (ArgoCD + Image Updater)
+
+L'environnement d'itération : un `git push` sur la branche `dev` (backend ou frontend)
+déclenche build → publication image `:dev` → **redéploiement auto** par ArgoCD. Rien à
+lancer à la main au quotidien.
+
+→ Mise en place : [`docs/runbook-dev.md`](docs/runbook-dev.md). Le déploiement initial
+se fait avec `./kubernetes/deploy.sh --env dev` (Phase 1), puis on bascule en GitOps.
+
+### 🟩 PROD — déploiement scripté (maîtrisé, ArgoCD activable)
+
+Déploiement **explicite et validé**, sans auto-MAJ surprise :
 
 ```bash
 # Linux / macOS / WSL
-./kubernetes/deploy.sh --env dev          # environnement dev
-./kubernetes/deploy.sh --env prod         # environnement prod
+./kubernetes/deploy.sh --env prod
 
 # Windows
-.\kubernetes\deploy.ps1 -Env dev
+.\kubernetes\deploy.ps1 -Env prod
 ```
 
-Le script gère MetalLB, OpenFaaS, les secrets, et les 2 charts Helm. Idempotent — peut être rejoué sans casser. Voir [`kubernetes/README.md`](kubernetes/README.md) pour la doc complète (variantes, override, troubleshooting).
+Le script gère MetalLB, OpenFaaS, les secrets, et les 2 charts Helm. Idempotent.
+**ArgoCD n'est pas activé en prod** mais reste **activable à tout moment** (manifestes
+déjà prêts dans [`kubernetes/argocd/`](kubernetes/argocd/README.md)).
 
-> **GitOps avec ArgoCD + Image Updater** — la prochaine évolution naturelle : ArgoCD watche ce repo et reconcilie automatiquement à chaque push. Avec **ArgoCD Image Updater** câblé dans les manifestes fournis, **chaque release Release Please (backend ou frontend) déclenche automatiquement le redéploiement** de la stack concernée — sans intervention manuelle, sans toucher aux workflows CI/CD existants. Manifestes prêts à l'emploi dans [`kubernetes/argocd/`](kubernetes/argocd/README.md).
+→ Pas-à-pas complet : [`docs/runbook-prod.md`](docs/runbook-prod.md) (la voie par défaut
+s'arrête au step 8 ; les steps 9-16 décrivent le passage optionnel en GitOps).
+
+> Détail de l'architecture des 2 environnements (schémas dev/prod) :
+> [`kubernetes/README.md` § Architecture par environnement](kubernetes/README.md#architecture-par-environnement).
 
 ## Documentation
 

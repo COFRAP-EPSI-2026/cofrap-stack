@@ -6,6 +6,7 @@ Déploiement de la stack COFRAP **complète** (MariaDB + 3 fonctions backend + f
 
 ## Sommaire
 
+- [Architecture par environnement](#architecture-par-environnement)
 - [Pré-requis](#pré-requis)
 - [Déploiement Phase 1 — scripté](#déploiement-phase-1--scripté)
 - [Cycle de vie : install / upgrade / uninstall](#cycle-de-vie--install--upgrade--uninstall)
@@ -15,6 +16,84 @@ Déploiement de la stack COFRAP **complète** (MariaDB + 3 fonctions backend + f
 - [Phase 2 — GitOps avec ArgoCD](#phase-2--gitops-avec-argocd)
 - [Troubleshooting](#troubleshooting)
 - [English version](#english-version)
+
+## Architecture par environnement
+
+Les deux environnements partagent **le même code, les mêmes charts Helm et les mêmes
+images GHCR**. Ils diffèrent par **le mode de déploiement** :
+
+- **DEV → GitOps complet (ArgoCD + Image Updater)** : auto-MAJ à chaque push sur la
+  branche `dev`. C'est l'environnement d'itération — on pousse, ça se déploie tout seul.
+- **PROD → déploiement scripté (`deploy.sh`)** : maîtrisé, manuel, validé par l'humain.
+  ArgoCD **n'est pas activé** mais reste **activable à tout moment** (les manifestes
+  ArgoCD prod existent déjà dans [`argocd/`](argocd/) — il suffit de les appliquer).
+
+### DEV — GitOps (ArgoCD actif)
+
+```
+  Développeur
+     │  git push origin dev   (backend ou frontend)
+     ▼
+  GitHub ──► pre-release.yml ──► build + push image :dev sur GHCR
+                                          │
+            ┌─────────────────────────────┘  (polling 2 min)
+            ▼
+  ArgoCD Image Updater  ──► commit auto du nouveau digest dans
+  (sur cluster dev)          cofrap-stack/kubernetes/values/<comp>.dev.yaml
+                                          │
+            ┌─────────────────────────────┘  (polling Git ~3 min)
+            ▼
+  ArgoCD (App-of-Apps cofrap-stack-dev)
+     ├─ Application cofrap-backend-dev   ─┐
+     └─ Application cofrap-frontend-dev  ─┤ helm template + apply (selfHeal: true)
+                                          ▼
+  Cluster K3s dev  (ns cofrap-dev + openfaas-fn)
+     ├─ MariaDB + 3 fonctions OpenFaaS + frontend nginx
+     └─ VIP MetalLB 192.168.1.240 ──► Cloudflare Tunnel ──► cofrap-dev.home-maurras.fr
+
+  Secrets : pré-créés hors Git (secrets.create=false) — kubernetes/create-secrets.sh
+```
+
+→ Mise en place pas-à-pas : [`../docs/runbook-dev.md`](../docs/runbook-dev.md).
+
+### PROD — scripté (ArgoCD désactivé, activable)
+
+```
+  Release Please (merge sur main) ──► tag vX.Y.Z ──► build + push image :latest / vX.Y.Z sur GHCR
+                                                              │
+  Opérateur (toi)                                             │
+     │  ./kubernetes/deploy.sh --env prod   ◄─────────────────┘  (déploiement manuel maîtrisé)
+     ▼
+  helm upgrade --install cofrap + cofrap-frontend  (secrets générés/­injectés via --set)
+     ▼
+  Cluster K3s prod  (ns cofrap + openfaas-fn)
+     ├─ MariaDB + 3 fonctions OpenFaaS + frontend nginx
+     └─ VIP MetalLB 192.168.1.241 ──► Cloudflare Tunnel ──► cofrap.home-maurras.fr
+
+  Secrets : créés par le chart (secrets.create=true, défaut) à partir du cache .secrets.prod
+```
+
+> **Pourquoi pas ArgoCD en prod ?** Choix volontaire : en prod on veut un déploiement
+> **explicite et validé** (pas d'auto-MAJ surprise). `deploy.sh` reste idempotent et
+> reproductible.
+
+#### Activer ArgoCD en prod plus tard (optionnel)
+
+Tout est déjà prêt — aucune réécriture nécessaire :
+
+1. Installer ArgoCD + Image Updater sur le cluster prod (cf. [`../docs/runbook-prod.md`](../docs/runbook-prod.md) §9-10).
+2. Basculer le chart backend en secrets externes : ajouter `secrets.create: false` dans
+   [`values/backend.prod.yaml`](values/backend.prod.yaml) + pré-créer les secrets
+   (`./kubernetes/create-secrets.sh --env prod`).
+3. Connecter le repo dans ArgoCD (submodules activés) et appliquer l'App-of-Apps prod :
+   ```bash
+   kubectl apply -f kubernetes/argocd/app-of-apps.prod.yaml
+   ```
+
+Les Applications prod ([`argocd/app-cofrap-backend.prod.yaml`](argocd/app-cofrap-backend.prod.yaml),
+[`...frontend.prod.yaml`](argocd/app-cofrap-frontend.prod.yaml)) sont déjà configurées avec
+`selfHeal: false` (humain dans la boucle) et Image Updater en stratégie **semver** (suit
+les tags `vX.Y.Z`, pas les images mobiles). Voir [`argocd/README.md`](argocd/README.md).
 
 ## Pré-requis
 
@@ -101,17 +180,20 @@ kubernetes/
 
 ## Environnements dev / prod
 
-| Aspect           | dev                                  | prod                                 |
-|------------------|---------------------------------------|--------------------------------------|
-| Namespace        | `cofrap-dev`                          | `cofrap`                             |
-| IP MetalLB (VIP) | `192.168.1.240`                       | `192.168.1.241`                      |
-| Hostname public  | `cofrap-dev.home-maurras.fr`          | `cofrap.home-maurras.fr`             |
-| Tag image backend | `dev` (publié par `pre-release.yml`) | `latest` (publié par `release-please.yml`) |
-| Tag image frontend | `dev`                                | `latest`                             |
-| ImagePullPolicy  | `Always` (tag mobile)                 | `IfNotPresent`                       |
-| MariaDB PVC      | `1Gi`                                 | `2Gi`                                |
-| Persistance      | Activée (PVC)                         | Activée (PVC)                        |
-| CORS             | `cofrap-dev.home-maurras.fr` uniquement | `cofrap.home-maurras.fr` uniquement |
+| Aspect            | dev                                   | prod                                 |
+|-------------------|---------------------------------------|--------------------------------------|
+| **Mode de déploiement** | **GitOps ArgoCD** (auto-MAJ sur push `dev`) | **Scripté `deploy.sh`** (manuel, validé) — ArgoCD activable |
+| **Secrets**       | `secrets.create: false` (pré-créés hors Git) | `secrets.create: true` (créés par le chart via `--set`) |
+| Namespace         | `cofrap-dev`                          | `cofrap`                             |
+| IP MetalLB (VIP)  | `192.168.1.240`                       | `192.168.1.241`                      |
+| Hostname public   | `cofrap-dev.home-maurras.fr`          | `cofrap.home-maurras.fr`             |
+| Tag image backend | `dev` (publié par `pre-release.yml`)  | `latest` / `vX.Y.Z` (publié par `release-please.yml`) |
+| Tag image frontend| `dev`                                 | `latest` / `vX.Y.Z`                  |
+| ImagePullPolicy   | `Always` (tag mobile)                 | `IfNotPresent`                       |
+| Image Updater     | stratégie **digest** (`^dev$`)        | stratégie **semver** (`^v\d+\.\d+\.\d+$`) — si ArgoCD activé |
+| ArgoCD `selfHeal` | `true` (auto-rollback)                | `false` (humain dans la boucle) — si ArgoCD activé |
+| MariaDB PVC       | `1Gi`                                 | `2Gi`                                |
+| CORS              | `cofrap-dev.home-maurras.fr` uniquement | `cofrap.home-maurras.fr` uniquement |
 
 Toutes ces valeurs sont éditables dans :
 - `kubernetes/env/{dev,prod}.env` — variables shell (IP, hostname, namespace…)

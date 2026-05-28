@@ -1,8 +1,16 @@
 # Runbook — Déploiement COFRAP en production de A à Z
 
-Guide séquentiel **du serveur vide jusqu'à la stack en prod avec GitOps automatique**.
-À suivre ligne par ligne pour un premier déploiement. Compter ~1h-1h30 si tu n'as
-encore rien (K3s, MetalLB, Cloudflare Tunnel, OpenFaaS, ArgoCD, Image Updater).
+Guide séquentiel **du serveur vide jusqu'à la stack en prod**. À suivre ligne par
+ligne pour un premier déploiement.
+
+> 🟢 **La voie PROD par défaut = déploiement scripté (steps 0 → 8).** À la fin du
+> step 8, ta prod tourne, exposée publiquement, **sans ArgoCD**. C'est le mode
+> recommandé : déploiement explicite et validé, pas d'auto-MAJ surprise. Compter ~45 min.
+>
+> 🔵 **Les steps 9 → 16 (ArgoCD + Image Updater) sont OPTIONNELS.** Ils décrivent
+> comment passer la prod en GitOps automatique *si un jour tu le souhaites*. En dev,
+> c'est déjà en place (cf. [`runbook-dev.md`](runbook-dev.md)) ; en prod, c'est un
+> choix que tu actives quand tu veux. Tu peux t'arrêter au step 8 et y revenir plus tard.
 
 > Pour les opérations ponctuelles après le déploiement, voir [`cheatsheet.md`](cheatsheet.md).
 > Pour comprendre le « pourquoi » des choix d'archi, voir [`kubernetes/README.md`](../kubernetes/README.md) et [`kubernetes/argocd/README.md`](../kubernetes/argocd/README.md).
@@ -18,7 +26,8 @@ encore rien (K3s, MetalLB, Cloudflare Tunnel, OpenFaaS, ArgoCD, Image Updater).
 - [5. Installation d'OpenFaaS Community](#5-installation-dopenfaas-community)
 - [6. Préparation Git + PAT GitHub](#6-préparation-git--pat-github)
 - [7. Premier déploiement (Phase 1, manuel)](#7-premier-déploiement-phase-1-manuel)
-- [8. Validation du déploiement Phase 1](#8-validation-du-déploiement-phase-1)
+- [8. Validation du déploiement Phase 1](#8-validation-du-déploiement-phase-1) ← **fin de la voie PROD par défaut**
+- **— Optionnel : passer la prod en GitOps (steps 9 → 14) —**
 - [9. Installation d'ArgoCD](#9-installation-dargocd)
 - [10. Installation d'ArgoCD Image Updater](#10-installation-dargocd-image-updater)
 - [11. Préparation des Secrets pour le GitOps](#11-préparation-des-secrets-pour-le-gitops)
@@ -457,9 +466,22 @@ Si ça marche → la Phase 1 est validée.
 
 ---
 
+---
+
+> 🔵 **À PARTIR D'ICI, TOUT EST OPTIONNEL.** Si tu t'arrêtes au step 8, ta prod
+> tourne très bien en mode scripté. Les steps 9 → 16 servent uniquement à passer
+> la prod en **GitOps ArgoCD** (auto-MAJ sur tag `vX.Y.Z`). À faire seulement si
+> tu veux ce niveau d'automatisation en prod — sinon saute directement au
+> [§ 15 (Opérations courantes)](#15-opérations-courantes-en-prod).
+
+---
+
 ## 9. Installation d'ArgoCD
 
-Maintenant on bascule en Phase 2 (GitOps).
+> ⚠ Étape optionnelle (bascule GitOps). Prérequis avant de continuer : passer
+> `secrets.create: false` dans [`kubernetes/values/backend.prod.yaml`](../kubernetes/values/backend.prod.yaml)
+> (bloc commenté à décommenter) — sinon ArgoCD échoue au `helm template` car le
+> chart exige les secrets. Cf. [`kubernetes/README.md` § Activer ArgoCD en prod](../kubernetes/README.md#activer-argocd-en-prod-plus-tard-optionnel).
 
 ```bash
 kubectl create namespace argocd

@@ -1,11 +1,16 @@
 # Override du chart `cofrap` (backend) pour l'environnement PROD.
 # Référence des clés : backend/deploy/helm/cofrap/values.yaml
 
-# GitOps : ArgoCD ne fournit pas les secrets (pas en Git). Le chart ne les crée
-# donc PAS — ils sont pré-créés dans le cluster via kubernetes/create-secrets.sh
-# (ou Sealed Secrets / ESO plus tard). Cf. kubernetes/argocd/README.md § Secrets.
-secrets:
-  create: false
+# PROD = déploiement SCRIPTÉ (deploy.sh) par défaut : le chart CRÉE les secrets
+# (secrets.create=true, défaut du chart) à partir des valeurs passées en --set par
+# le script. On laisse donc ce champ au défaut (pas de override ici).
+#
+# >>> Pour basculer la PROD en GitOps ArgoCD plus tard <<<
+# Décommente le bloc ci-dessous (secrets gérés hors Git, pré-créés via
+# ./kubernetes/create-secrets.sh --env prod). Cf. kubernetes/README.md
+# § « Activer ArgoCD en prod » + argocd/README.md.
+# secrets:
+#   create: false
 
 openfaas:
   functionNamespace: openfaas-fn
