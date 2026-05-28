@@ -581,11 +581,17 @@ kubectl delete namespace openfaas openfaas-fn --wait=false
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# IMPORTANT : --server-side, sinon "Too long: may not be more than 262144 bytes"
+# (CRD ApplicationSet dépasse la limite client-side de kubectl apply).
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Mot de passe admin initial
 kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d ; echo
+
+# Optionnel : scaler ApplicationSet à 0 (inutile pour le setup COFRAP)
+kubectl -n argocd scale deployment argocd-applicationset-controller --replicas=0
 ```
 
 ### UI
@@ -654,6 +660,18 @@ kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/s
 kubectl delete namespace argocd
 ```
 
+### Erreur `Too long: may not be more than 262144 bytes`
+
+CRD `ApplicationSet` dépasse la limite des annotations client-side. **Toujours utiliser
+`kubectl apply --server-side`** pour ArgoCD. Si déjà foiré :
+
+```bash
+kubectl apply --server-side --force-conflicts \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+`--force-conflicts` prend l'ownership des champs des précédents `kubectl apply` client-side.
+
 ---
 
 ## ArgoCD Image Updater
@@ -661,8 +679,9 @@ kubectl delete namespace argocd
 ### Installation
 
 ```bash
-kubectl apply -n argocd \
-  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+# Manifest sous config/ (PAS manifests/ — ancien chemin renvoie 404)
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/config/install.yaml
 ```
 
 ### Configuration
@@ -677,21 +696,21 @@ kubectl -n argocd create secret generic git-creds \
 kubectl apply -f kubernetes/argocd/image-updater-config.yaml
 
 # Recharger le pod
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 ```
 
 ### Logs & debug
 
 ```bash
 # Logs en live — Image Updater polle toutes les 2 min
-kubectl -n argocd logs deploy/argocd-image-updater -f
+kubectl -n argocd logs deploy/argocd-image-updater-controller -f
 
 # Vérifier qu'il voit les images du registre
-kubectl -n argocd exec deploy/argocd-image-updater -- \
+kubectl -n argocd exec deploy/argocd-image-updater-controller -- \
   argocd-image-updater test ghcr.io/cofrap-epsi-2026/cofrap-frontend
 
 # Forcer un cycle (pas vraiment nécessaire, mais utile en debug)
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 ```
 
 ### Vérifier qu'un bump est passé
@@ -915,17 +934,17 @@ curl -k -H 'Host: cofrap-dev.home-maurras.fr' http://192.168.1.240/healthz
 
 # 1. Installer ArgoCD
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d ; echo
 
-# 2. Installer Image Updater + sa config
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+# 2. Installer Image Updater + sa config (manifest sous config/, PAS manifests/)
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/config/install.yaml
 # (créer le PAT GitHub d'abord — scope `repo` sur cofrap-stack)
 kubectl -n argocd create secret generic git-creds \
   --from-literal=username=argocd-image-updater \
   --from-literal=password=<PAT>
 kubectl apply -f kubernetes/argocd/image-updater-config.yaml
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 
 # 3. Pré-créer les secrets cofrap (ArgoCD ne les gère pas)
 source kubernetes/.secrets.dev

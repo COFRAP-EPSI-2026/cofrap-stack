@@ -463,10 +463,18 @@ Maintenant on bascule en Phase 2 (GitOps).
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# IMPORTANT : --server-side évite "Too long: may not be more than 262144 bytes"
+# sur la CRD ApplicationSet (~280 KB, dépasse la limite K8s sur les annotations
+# côté kubectl apply client-side).
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Attendre que les pods démarrent (~1 min)
 kubectl -n argocd wait --for=condition=Ready pod --all --timeout=300s
+
+# Optionnel : on n'utilise pas ApplicationSet dans le setup COFRAP — autant
+# libérer le pod et nettoyer les logs.
+kubectl -n argocd scale deployment argocd-applicationset-controller --replicas=0
 ```
 
 ### 9.1 Récupérer le mot de passe admin
@@ -527,11 +535,12 @@ C'est le composant clé qui détecte les nouvelles images GHCR et bump les value
 ### 10.1 Installer Image Updater
 
 ```bash
-kubectl apply -n argocd \
-  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+# Le manifest est sous config/install.yaml (PAS manifests/ — ancien chemin = 404)
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/config/install.yaml
 
 # Attendre le pod
-kubectl -n argocd wait --for=condition=Ready pod -l app.kubernetes.io/name=argocd-image-updater --timeout=120s
+kubectl -n argocd rollout status deployment argocd-image-updater-controller-controller --timeout=120s
 ```
 
 ### 10.2 Créer le secret git-creds (avec le PAT du step 6.2)
@@ -549,13 +558,13 @@ kubectl -n argocd create secret generic git-creds \
 kubectl apply -f kubernetes/argocd/image-updater-config.yaml
 
 # Recharger le pod pour qu'il relise la config
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 ```
 
 ### 10.4 Vérifier les logs
 
 ```bash
-kubectl -n argocd logs deploy/argocd-image-updater -f
+kubectl -n argocd logs deploy/argocd-image-updater-controller -f
 # Tu dois voir :
 # time="..." level=info msg="Starting argocd-image-updater"
 # time="..." level=info msg="Loaded 0 image(s) to be considered for update"
@@ -709,7 +718,7 @@ curl -I https://cofrap.home-maurras.fr/
 ### 14.1 Vérifier que Image Updater voit les Applications
 
 ```bash
-kubectl -n argocd logs deploy/argocd-image-updater | tail -20
+kubectl -n argocd logs deploy/argocd-image-updater-controller | tail -20
 # Tu dois voir :
 # time="..." level=info msg="Loaded 2 image(s) to be considered for update"
 # time="..." level=info msg="Processing image list for application cofrap-backend-prod"
@@ -756,7 +765,7 @@ git push origin main
 Surveiller en parallèle :
 ```bash
 # Logs Image Updater (sur le cluster)
-kubectl -n argocd logs deploy/argocd-image-updater -f
+kubectl -n argocd logs deploy/argocd-image-updater-controller -f
 
 # Commits arrivant sur cofrap-stack
 watch -n 30 'git -C ~/cofrap-stack log -3 --oneline'

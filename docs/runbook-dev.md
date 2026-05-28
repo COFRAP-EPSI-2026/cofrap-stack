@@ -428,9 +428,17 @@ Sinon (ArgoCD dédié dev) :
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# IMPORTANT : --server-side évite "Too long: may not be more than 262144 bytes"
+# sur la CRD ApplicationSet (~280 KB, dépasse la limite K8s sur les annotations
+# côté kubectl apply client-side).
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 kubectl -n argocd wait --for=condition=Ready pod --all --timeout=300s
+
+# Optionnel : on n'utilise pas ApplicationSet dans le setup COFRAP — autant
+# libérer le pod et nettoyer les logs.
+kubectl -n argocd scale deployment argocd-applicationset-controller --replicas=0
 
 # Mot de passe admin
 kubectl -n argocd get secret argocd-initial-admin-secret \
@@ -477,10 +485,11 @@ C'est ici que ça diverge **fortement** de la prod : on suit le **digest** du ta
 mobile `:dev` au lieu de chercher des nouveaux tags semver.
 
 ```bash
-kubectl apply -n argocd \
-  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+# Le manifest est sous config/install.yaml (PAS manifests/ — ancien chemin = 404)
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/config/install.yaml
 
-kubectl -n argocd wait --for=condition=Ready pod -l app.kubernetes.io/name=argocd-image-updater --timeout=120s
+kubectl -n argocd rollout status deployment argocd-image-updater-controller-controller --timeout=120s
 ```
 
 ### 10.1 Secret git-creds avec le PAT (du step 6.2)
@@ -496,13 +505,13 @@ kubectl -n argocd create secret generic git-creds \
 ```bash
 kubectl apply -f kubernetes/argocd/image-updater-config.yaml
 
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 ```
 
 ### 10.3 Vérifier les logs
 
 ```bash
-kubectl -n argocd logs deploy/argocd-image-updater -f
+kubectl -n argocd logs deploy/argocd-image-updater-controller -f
 # time="..." msg="Starting argocd-image-updater"
 # time="..." msg="Loaded 0 image(s) to be considered for update"
 #   ^^^ Normal pour l'instant, on connecte les Apps au step 13
@@ -627,7 +636,7 @@ les pods à la main — passe par Git ou laisse Image Updater faire son taf.
 ### 14.1 Vérifier que Image Updater voit les Apps dev
 
 ```bash
-kubectl -n argocd logs deploy/argocd-image-updater | tail -20
+kubectl -n argocd logs deploy/argocd-image-updater-controller | tail -20
 # time="..." msg="Loaded 2 image(s) to be considered for update"
 # time="..." msg="Processing image list for application cofrap-backend-dev"
 # time="..." msg="Processing image list for application cofrap-frontend-dev"
@@ -657,7 +666,7 @@ git push origin dev
 **Côté cluster** (~2-3 min après la fin du workflow) :
 ```bash
 # Logs Image Updater — tu dois voir :
-kubectl -n argocd logs deploy/argocd-image-updater -f
+kubectl -n argocd logs deploy/argocd-image-updater-controller -f
 # time="..." msg="Setting new image to ghcr.io/cofrap-epsi-2026/generate-password:dev@sha256:..."
 # time="..." msg="Committing 1 parameter update(s) for application cofrap-backend-dev"
 # time="..." msg="Successfully updated the live application spec"
@@ -753,7 +762,7 @@ Si tu pushes 3 commits coup sur coup et que tu veux que ça monte tout de suite 
 
 ```bash
 # Forcer Image Updater à re-scanner maintenant
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 
 # Ou forcer ArgoCD à re-syncer (si Image Updater a déjà commit)
 argocd app sync cofrap-backend-dev
@@ -802,10 +811,10 @@ rm kubernetes/.secrets.dev          # ⚠ tu perds les données chiffrées (comp
 ### 16.3 Reset uniquement Image Updater (s'il foire les commits)
 
 ```bash
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 
 # Logs pour comprendre
-kubectl -n argocd logs deploy/argocd-image-updater -f
+kubectl -n argocd logs deploy/argocd-image-updater-controller -f
 ```
 
 ### 16.4 Reset uniquement ArgoCD (sans toucher au cluster)

@@ -1,6 +1,12 @@
 # Override du chart `cofrap` (backend) pour l'environnement PROD.
 # Référence des clés : backend/deploy/helm/cofrap/values.yaml
 
+# GitOps : ArgoCD ne fournit pas les secrets (pas en Git). Le chart ne les crée
+# donc PAS — ils sont pré-créés dans le cluster via kubernetes/create-secrets.sh
+# (ou Sealed Secrets / ESO plus tard). Cf. kubernetes/argocd/README.md § Secrets.
+secrets:
+  create: false
+
 openfaas:
   functionNamespace: openfaas-fn
   gatewayURL: "http://gateway.openfaas.svc.cluster.local:8080"

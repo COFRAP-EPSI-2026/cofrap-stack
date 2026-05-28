@@ -7,9 +7,11 @@ Manifestes ArgoCD pour déployer et **maintenir automatiquement** la stack COFRA
 ## TL;DR
 
 ```bash
-# 1. Installer ArgoCD (une seule fois par cluster)
+# 1. Installer ArgoCD (une seule fois par cluster). --server-side OBLIGATOIRE
+#    sinon "Too long: may not be more than 262144 bytes" sur la CRD ApplicationSet.
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # 2. Bootstrap : applique l'App-of-Apps de l'env
 kubectl apply -f kubernetes/argocd/app-of-apps.dev.yaml
@@ -161,9 +163,16 @@ Sur GitHub, créer un **PAT classique** ([Settings → Developer settings → Pe
 #### Étape 2 — Installer Image Updater
 
 ```bash
-kubectl apply -n argocd \
-  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side \
+  -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/config/install.yaml
 ```
+
+> ⚠ Le manifest est sous **`config/install.yaml`** (et non `manifests/install.yaml` —
+> ancien chemin qui renvoie un 404 désormais).
+>
+> Note : pour ArgoCD lui-même (au-dessus, step 1 du bootstrap initial), `--server-side`
+> est **obligatoire** à cause de la CRD ApplicationSet (~280 KB). Pour Image Updater
+> c'est juste une bonne pratique (le manifest est plus petit, ça marche aussi sans).
 
 #### Étape 3 — Créer le secret git-creds + appliquer la config
 
@@ -177,7 +186,7 @@ kubectl -n argocd create secret generic git-creds \
 kubectl apply -f kubernetes/argocd/image-updater-config.yaml
 
 # Redémarre le pod pour qu'il relise la config
-kubectl -n argocd rollout restart deployment argocd-image-updater
+kubectl -n argocd rollout restart deployment argocd-image-updater-controller
 ```
 
 #### Étape 4 — Déclarer le repo Git dans ArgoCD avec les credentials
@@ -200,7 +209,7 @@ argocd repo add https://github.com/COFRAP-EPSI-2026/cofrap-stack.git \
 
 Vérifier les logs Image Updater :
 ```bash
-kubectl -n argocd logs deploy/argocd-image-updater -f
+kubectl -n argocd logs deploy/argocd-image-updater-controller -f
 # Tu dois voir, toutes les 2 min : "Processing image list for application <name>"
 ```
 
@@ -271,7 +280,7 @@ Normal si tu as pré-créé le Secret à la main. Vérifier que la section `igno
 ### Image Updater ne déclenche pas la MAJ
 
 1. Vérifier qu'il a les credentials Git en écriture : `kubectl -n argocd get secret argocd-image-updater-secret -o yaml`
-2. Vérifier les logs : `kubectl -n argocd logs deploy/argocd-image-updater -f`
+2. Vérifier les logs : `kubectl -n argocd logs deploy/argocd-image-updater-controller -f`
 3. Vérifier que les annotations matchent bien le pattern de tag (`regexp:^dev$` pour dev, `regexp:^v\d+\.\d+\.\d+$` pour prod).
 
 ---
