@@ -146,6 +146,7 @@ s'arrête au step 8 ; les steps 9-16 décrivent le passage optionnel en GitOps).
 
 | Document                                          | À utiliser quand…                                                                            |
 |---------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| [`docs/architecture.md`](docs/architecture.md)    | Tu veux **comprendre la stack** — 5 diagrammes Mermaid (applicatif dev/prod, réseau dev/prod, flux utilisateur) |
 | [`docs/runbook-dev.md`](docs/runbook-dev.md)      | Tu déploies **la dev A → Z** — focus auto-MAJ sur chaque push branche `dev` (~1h)            |
 | [`docs/runbook-prod.md`](docs/runbook-prod.md)    | Tu déploies **la prod A → Z** — focus releases stables `vX.Y.Z` (~1h-1h30)                  |
 | [`docs/cheatsheet.md`](docs/cheatsheet.md)        | Tu veux **une commande** précise (kubectl, helm, argocd…) — aide-mémoire contextualisé COFRAP |
